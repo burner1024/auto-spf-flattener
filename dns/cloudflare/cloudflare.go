@@ -11,8 +11,10 @@ import (
 // cf.API implements this interface
 type CloudflareAPI interface {
 	CreateDNSRecord(string, cf.DNSRecord) (*cf.DNSRecordResponse, error)
+	UpdateDNSRecord(string, string, cf.DNSRecord) error
 	DeleteDNSRecord(string, string) error
 	DNSRecords(string, cf.DNSRecord) ([]cf.DNSRecord, error)
+	DNSRecord(string, string) (cf.DNSRecord, error)
 }
 
 // implements CloudflareAPI while wrapping the actual CF API object
@@ -43,12 +45,12 @@ type CloudflareAPI interface {
 //}
 
 // Implements dns.DNSAPI
-type CloudflareUpdater struct {
+type CloudflareAPIClient struct {
 	ZoneID string
 	Api    CloudflareAPI
 }
 
-func NewCloudflareUpdater(zoneName string) *CloudflareUpdater {
+func NewCloudflareAPIClient(zoneName string) *CloudflareAPIClient {
 	api, newErr := cf.New(os.Getenv("CF_API_KEY"), os.Getenv("CF_API_EMAIL"))
 	if newErr != nil {
 		panic(newErr)
@@ -60,19 +62,46 @@ func NewCloudflareUpdater(zoneName string) *CloudflareUpdater {
 	if len(zones) != 1 {
 		panic("didn't find exactly one zone named " + zoneName)
 	}
-	return &CloudflareUpdater{
+	return &CloudflareAPIClient{
 		ZoneID: zones[0].ID,
 		Api:    api,
 	}
 }
 
-func (cfu *CloudflareUpdater) WriteTXTRecord(name, txt string) (string, error) {
+// Find a set of IDs that match the text filter
+func (c *CloudflareAPIClient) FilterTXTRecords(name, filter string) ([]string, error) {
+	rr := cf.DNSRecord{
+		Type: "TXT",
+		Name: name,
+	}
+	records, err := c.Api.DNSRecords(c.ZoneID, rr)
+	if err != nil {
+		return []string{}, err
+	}
+	results := []string{}
+	for _, record := range records {
+		if strings.Contains(record.Content, filter) {
+			results = append(results, record.ID)
+		}
+	}
+	return results, nil
+}
+
+func (c *CloudflareAPIClient) GetTXTRecordContent(id string) (string, error) {
+	if record, err := c.Api.DNSRecord(c.ZoneID, id); err != nil {
+		return "", err
+	} else {
+		return record.Content, nil
+	}
+}
+
+func (c *CloudflareAPIClient) WriteTXTRecord(name, txt string) (string, error) {
 	rr := cf.DNSRecord{
 		Type:    "TXT",
 		Name:    name,
 		Content: txt,
 	}
-	response, err := cfu.Api.CreateDNSRecord(cfu.ZoneID, rr)
+	response, err := c.Api.CreateDNSRecord(c.ZoneID, rr)
 	if err != nil {
 		return "", err
 	}
@@ -83,25 +112,20 @@ func (cfu *CloudflareUpdater) WriteTXTRecord(name, txt string) (string, error) {
 	return id, err
 }
 
-func (cfu *CloudflareUpdater) DeleteTXTRecordByName(name string) error {
+// Update does not change the ID
+func (c *CloudflareAPIClient) UpdateTXTRecord(id, name, txt string) (string, error) {
 	rr := cf.DNSRecord{
-		Type: "TXT",
-		Name: name,
+		Type:    "TXT",
+		Name:    name,
+		Content: txt,
 	}
-	records, err := cfu.Api.DNSRecords(cfu.ZoneID, rr)
+	err := c.Api.UpdateDNSRecord(c.ZoneID, id, rr)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if len(records) != 1 {
-		return errors.New("didn't find exactly one txt record named " + name)
-	}
-	if records[0].Type != "TXT" {
-		return errors.New("Cannot delete DNS record because type is not TXT: " + records[0].Type)
-	}
-	id := records[0].ID
-	return cfu.DeleteTXTRecord(id)
+	return id, err
 }
 
-func (cfu *CloudflareUpdater) DeleteTXTRecord(id string) error {
-	return cfu.Api.DeleteDNSRecord(cfu.ZoneID, id)
+func (c *CloudflareAPIClient) DeleteTXTRecord(id string) error {
+	return c.Api.DeleteDNSRecord(c.ZoneID, id)
 }

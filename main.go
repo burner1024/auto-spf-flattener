@@ -3,21 +3,17 @@ package main
 import (
 	"fmt"
 	dns "github.com/lordbyron/auto-spf-flattener/dns"
+	cf "github.com/lordbyron/auto-spf-flattener/dns/cloudflare"
 	spf "github.com/lordbyron/auto-spf-flattener/spf"
 	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 )
 
 var topDomain string
 var spfSubdomainPrefix string
 var spfFile string
-
-// memoize a hash of the flattened record so we don't do any wasteful DNS
-// queries or updates
-var memo string
 
 func init() {
 	flag.StringVarP(&spfFile, "spf-file", "f", "", "File that contains a valid spf format TXT record (required)")
@@ -36,35 +32,22 @@ func init() {
 
 func main() {
 
-	printer := &dns.DNSPrinter{}
+	//printer := &dns.DNSPrinter{}
+	client := cf.NewCloudflareAPIClient(topDomain)
 
-	var updater dns.DNSUpdaterIface = dns.NewDNSUpdater(printer, topDomain, spfSubdomainPrefix)
+	updater := dns.NewDNSUpdater(client, topDomain, spfSubdomainPrefix)
 
-	retry := 0
-	memo = ""
+	dat, err := ioutil.ReadFile(spfFile)
+	if err != nil {
+		panic(err)
+	}
+	spfString := strings.TrimSpace(string(dat))
 
-	for {
+	idealSPF := spf.NewSPF()
+	idealSPF.Parse(spfString)
 
-		dat, err := ioutil.ReadFile(spfFile)
-		if err != nil {
-			panic(err)
-		}
-		spfString := strings.TrimSpace(string(dat))
-
-		idealSPF := spf.NewSPF()
-		idealSPF.Parse(spfString)
-
-		err = updater.Update(idealSPF)
-		if err != nil {
-			if retry >= 3 {
-				panic(err)
-			}
-			retry++
-		} else {
-			retry = 0
-		}
-
-		time.Sleep(5 * time.Second)
-
+	err = updater.Update(idealSPF)
+	if err != nil {
+		fmt.Println(err)
 	}
 }

@@ -8,22 +8,34 @@ import (
 )
 
 type DNSAPI interface {
+	FilterTXTRecords(string, string) ([]string, error)
+	GetTXTRecordContent(string) (string, error)
 	WriteTXTRecord(string, string) (string, error)
-	DeleteTXTRecordByName(string) error
+	UpdateTXTRecord(string, string, string) (string, error)
 	DeleteTXTRecord(string) error
 }
 
 // simple printer implements DNSAPI
 type DNSPrinter struct{}
 
+func (p *DNSPrinter) FilterTXTRecords(name, filter string) ([]string, error) {
+	fmt.Printf("API->FilterTXTRecords(%s, %s)\n", name, filter)
+	return []string{}, nil
+}
+
+func (p *DNSPrinter) GetTXTRecordContent(id string) (string, error) {
+	fmt.Printf("API->GetTXTRecordContent(%s)\n", id)
+	return id, nil
+}
+
 func (p *DNSPrinter) WriteTXTRecord(name, txt string) (string, error) {
 	fmt.Printf("API->WriteTXTRecord(%s, `%s`)\n", name, txt)
 	return name, nil
 }
 
-func (p *DNSPrinter) DeleteTXTRecordByName(name string) error {
-	fmt.Printf("API->DeleteTXTRecordByName(%s)\n", name)
-	return nil
+func (p *DNSPrinter) UpdateTXTRecord(id, name, txt string) (string, error) {
+	fmt.Printf("API->UpdateTXTRecord(%s, %s, `%s`)\n", id, name, txt)
+	return name, nil
 }
 
 func (p *DNSPrinter) DeleteTXTRecord(id string) error {
@@ -31,16 +43,10 @@ func (p *DNSPrinter) DeleteTXTRecord(id string) error {
 	return nil
 }
 
-type DNSUpdaterIface interface {
-	Update(*spf.SPF) error
-}
-
 type DnsUpdater struct {
 	Api                DNSAPI
 	topDomain          string
 	spfSubdomainPrefix string
-	flatMemo           string
-	idMemo             []string
 }
 
 type TXTRecord struct {
@@ -53,19 +59,6 @@ func NewDNSUpdater(api DNSAPI, topDomain, spfSubdomainPrefix string) *DnsUpdater
 		Api:                api,
 		topDomain:          topDomain,
 		spfSubdomainPrefix: spfSubdomainPrefix,
-		flatMemo:           "",
-	}
-}
-
-func (u *DnsUpdater) needsUpdate(record *spf.SPF) bool {
-	serialized := fmt.Sprintf("%v", record)
-	sum := sha1.Sum([]byte(serialized))
-	hash := string(sum[:])
-	if u.flatMemo == hash {
-		return false
-	} else {
-		u.flatMemo = hash
-		return true
 	}
 }
 
@@ -77,36 +70,37 @@ func (u *DnsUpdater) Update(ideal *spf.SPF) error {
 		return err
 	}
 
-	// if no update is needed, skip it
-	if !u.needsUpdate(flat) {
-		return nil
-	}
-
-	var records []TXTRecord
+	records := []TXTRecord{}
+	var topRecord TXTRecord
 
 	if flat.LookupCount <= 10 {
 		// No need for flattening
-		records = []TXTRecord{TXTRecord{
+		// var records remains empty
+		topRecord = TXTRecord{
 			name: u.topDomain,
 			txt:  ideal.AsTXTRecord(),
-		}}
+		}
 	} else {
 		// Need to split it up
 		splits, err := flat.Split()
 		if err != nil {
 			return err
 		}
-		records = u.makeRecords(splits)
+		records, topRecord = u.makeRecords(splits)
 	}
 
-	if len(records) > 0 {
-		u.updateDNS(records)
+	shouldUpdate, topRecordIDToUpdate, recordIDsToDelete := u.getCurrentRecordIDs(topRecord)
+	if !shouldUpdate {
+		// all done here
+		return nil
 	}
 
-	return nil
+	return u.updateDNS(topRecordIDToUpdate, topRecord, records, recordIDsToDelete)
 }
 
-func (u *DnsUpdater) makeRecords(splits []*spf.SPF) []TXTRecord {
+// Returns a slice of subdomain records and one top-level record, which
+// references them.
+func (u *DnsUpdater) makeRecords(splits []*spf.SPF) ([]TXTRecord, TXTRecord) {
 	records := []TXTRecord{}
 
 	topSPF := spf.NewSPF()
@@ -123,11 +117,10 @@ func (u *DnsUpdater) makeRecords(splits []*spf.SPF) []TXTRecord {
 		records = append(records, record)
 		topSPF.Include = append(topSPF.Include, subdomain+"."+u.topDomain)
 	}
-	records = append(records, TXTRecord{
+	return records, TXTRecord{
 		name: u.topDomain,
 		txt:  topSPF.AsTXTRecord(),
-	})
-	return records
+	}
 }
 
 func hash(txt string) string {
@@ -135,32 +128,83 @@ func hash(txt string) string {
 	return hex.EncodeToString(sum[0:3])
 }
 
-func (u *DnsUpdater) updateDNS(records []TXTRecord) error {
+func (u *DnsUpdater) updateDNS(topRecordIDToUpdate string, topRecord TXTRecord, newRecords []TXTRecord, recordIDsToDelete []string) error {
 	// Need to add new records as well as delete the old ones
 	// 1. Create new subdomain records
-	// 2. Add new top level record (there will be a duplicate, possibly invalid)
-	// 3. Delete old top level record
-	// 4. Delete old subdomain records
+	// 2. Update or create top record
+	// 3. Delete any old top or sub records
 
-	newIDs := []string{}
-	// 1. and 2.
-	for _, record := range records {
-		id, err := u.Api.WriteTXTRecord(record.name, record.txt)
+	// 1.
+	for _, record := range newRecords {
+		_, err := u.Api.WriteTXTRecord(record.name, record.txt)
 		if err != nil {
 			return err
 		}
-		// prepend so top record, which is last in the inputs, is first in the output
-		newIDs = append([]string{id}, newIDs...)
 	}
 
-	// 3. and 4.
-	for _, oldID := range u.idMemo {
+	// 2.
+	if topRecordIDToUpdate == "" {
+		_, err := u.Api.WriteTXTRecord(topRecord.name, topRecord.txt)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := u.Api.UpdateTXTRecord(topRecordIDToUpdate, topRecord.name, topRecord.txt)
+		if err != nil {
+			return err
+		}
+	}
+
+	// 3.
+	for _, oldID := range recordIDsToDelete {
 		err := u.Api.DeleteTXTRecord(oldID)
 		if err != nil {
 			return err
 		}
 	}
 
-	u.idMemo = newIDs
 	return nil
+}
+
+// Look at the current DNS settings and figure out what needs to change
+func (u *DnsUpdater) getCurrentRecordIDs(topRecord TXTRecord) (bool, string, []string) {
+	var topRecordIDToUpdate string
+	var recordIDsToDelete []string = []string{}
+
+	allTopRecordIDs, _ := u.Api.FilterTXTRecords(u.topDomain, "v=spf1")
+	if len(allTopRecordIDs) == 0 {
+		// no top record found, can't really do anything
+		// still need to add new DNS records
+		return true, topRecordIDToUpdate, recordIDsToDelete
+	}
+
+	goodTopRecordIDs, _ := u.Api.FilterTXTRecords(u.topDomain, topRecord.txt)
+	var goodTopRecordID string
+	if len(goodTopRecordIDs) > 0 {
+		// It's possible that multiple match. Let the others get deleted.
+		goodTopRecordID = goodTopRecordIDs[0]
+	}
+
+	if len(allTopRecordIDs) == 1 && allTopRecordIDs[0] == goodTopRecordID {
+		// Everything is correct, so do nothing!
+		return false, topRecordIDToUpdate, recordIDsToDelete
+	}
+
+	for _, topRecordID := range allTopRecordIDs {
+		if topRecordIDToUpdate == "" {
+			topRecordIDToUpdate = topRecordID
+		} else {
+			recordIDsToDelete = append(recordIDsToDelete, topRecordID)
+		}
+		if content, err := u.Api.GetTXTRecordContent(topRecordID); err == nil {
+			topSPF := spf.NewSPF()
+			if topSPF.Parse(content) == nil {
+				for _, include := range topSPF.Include {
+					subRecordIDs, _ := u.Api.FilterTXTRecords(include, "v=spf1")
+					recordIDsToDelete = append(recordIDsToDelete, subRecordIDs...)
+				}
+			}
+		}
+	}
+	return true, topRecordIDToUpdate, recordIDsToDelete
 }

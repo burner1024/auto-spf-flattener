@@ -40,6 +40,16 @@ func (_mr *_MockCloudflareAPIRecorder) CreateDNSRecord(arg0, arg1 interface{}) *
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CreateDNSRecord", arg0, arg1)
 }
 
+func (_m *MockCloudflareAPI) UpdateDNSRecord(_param0 string, _param1 string, _param2 cloudflare_go.DNSRecord) error {
+	ret := _m.ctrl.Call(_m, "UpdateDNSRecord", _param0, _param1, _param2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockCloudflareAPIRecorder) UpdateDNSRecord(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateDNSRecord", arg0, arg1, arg2)
+}
+
 func (_m *MockCloudflareAPI) DeleteDNSRecord(_param0 string, _param1 string) error {
 	ret := _m.ctrl.Call(_m, "DeleteDNSRecord", _param0, _param1)
 	ret0, _ := ret[0].(error)
@@ -59,4 +69,15 @@ func (_m *MockCloudflareAPI) DNSRecords(_param0 string, _param1 cloudflare_go.DN
 
 func (_mr *_MockCloudflareAPIRecorder) DNSRecords(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DNSRecords", arg0, arg1)
+}
+
+func (_m *MockCloudflareAPI) DNSRecord(_param0 string, _param1 string) (cloudflare_go.DNSRecord, error) {
+	ret := _m.ctrl.Call(_m, "DNSRecord", _param0, _param1)
+	ret0, _ := ret[0].(cloudflare_go.DNSRecord)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockCloudflareAPIRecorder) DNSRecord(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DNSRecord", arg0, arg1)
 }
