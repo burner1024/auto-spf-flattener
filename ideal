@@ -1,0 +1,1 @@
+v=spf1 include:mail.zendesk.com include:_spf.google.com include:spf.mail.intercom.io include:servers.mcsv.net ~all
