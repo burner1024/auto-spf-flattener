@@ -1,0 +1,28 @@
+{
+	"ImportPath": "github.com/envoy/auto-spf-flattener",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v71",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/cloudflare/cloudflare-go",
+			"Comment": "v0.6-beta-5-g4126653",
+			"Rev": "4126653d9eba14d6cc64fdd83b016e8155f46eb6"
+		},
+		{
+			"ImportPath": "github.com/golang/mock/gomock",
+			"Rev": "bd3c8e81be01eef76d4b503f5e687d2d1354d2d9"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.4.0",
+			"Rev": "d814416a46cbb066b728cfff58d30a986bc9ddbe"
+		},
+		{
+			"ImportPath": "github.com/spf13/pflag",
+			"Rev": "cb88ea77998c3f024757528e3305022ab50b43be"
+		}
+	]
+}
