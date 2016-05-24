@@ -2,8 +2,8 @@ package cloudflare
 
 import (
 	cf "github.com/cloudflare/cloudflare-go"
+	mock_cloudflare "github.com/envoy/auto-spf-flattener/dns/cloudflare/mock_cloudflare"
 	"github.com/golang/mock/gomock"
-	mock_cloudflare "github.com/lordbyron/auto-spf-flattener/dns/cloudflare/mock_cloudflare"
 	"testing"
 )
 

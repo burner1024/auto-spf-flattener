@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	dns "github.com/lordbyron/auto-spf-flattener/dns"
-	cf "github.com/lordbyron/auto-spf-flattener/dns/cloudflare"
-	spf "github.com/lordbyron/auto-spf-flattener/spf"
+	dns "github.com/envoy/auto-spf-flattener/dns"
+	cf "github.com/envoy/auto-spf-flattener/dns/cloudflare"
+	spf "github.com/envoy/auto-spf-flattener/spf"
 	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	"os"
