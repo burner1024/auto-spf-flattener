@@ -1,7 +1,7 @@
 # auto-spf-flattener
 Given a desired SPF record, flatten it and push it to your DNS provider (so far just cloudflare)
 
-This chaching is intended to solve the two problems of SPF:
+This caching is intended to solve the two problems of SPF:
 - You can't have more than 10 cascaded DNS lookups
 - Each lookup's response must fit in a single UDP packet (512 octets)
 
