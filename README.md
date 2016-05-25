@@ -19,10 +19,10 @@ Environment variables CF_API_EMAIL and CF_API_KEY are required
   
 ## Example
 ```
-env - CF_API_KEY=<cloudflare-key> CF_API_EMAIL=<cloudflare-email> ./bin/auto-spf-flattener -f ideal envoy.wtf
+env - CF_API_KEY=<cloudflare-key> CF_API_EMAIL=<cloudflare-email> ./bin/auto-spf-flattener -f ideal envoy.com
 ```
 
-In this example, `envoy.wtf` is the domain to work on and the file `ideal` looks like:
+In this example, `envoy.com` is the domain to work on and the file `ideal` looks like:
 
 ```
 v=spf1 include:mail.zendesk.com include:_spf.google.com include:spf.mail.intercom.io include:servers.mcsv.net ~all
