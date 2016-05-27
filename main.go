@@ -14,10 +14,12 @@ import (
 var topDomain string
 var spfSubdomainPrefix string
 var spfFile string
+var dryRun bool
 
 func init() {
 	flag.StringVarP(&spfFile, "spf-file", "f", "", "File that contains a valid spf format TXT record (required)")
 	flag.StringVarP(&spfSubdomainPrefix, "spf-prefix", "p", "_spf", "Prefix for subdomains when multiple are needed.")
+	flag.BoolVarP(&dryRun, "dry-run", "d", false, "Connect to DNS, but don't make any changes")
 	flag.Parse()
 
 	if flag.NArg() != 1 || spfFile == "" {
@@ -46,7 +48,7 @@ func main() {
 	idealSPF := spf.NewSPF()
 	idealSPF.Parse(spfString)
 
-	err = updater.Update(idealSPF)
+	err = updater.Update(idealSPF, dryRun)
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -63,7 +63,7 @@ func NewDNSUpdater(api DNSAPI, topDomain, spfSubdomainPrefix string) *DnsUpdater
 }
 
 // Input is the preferred SPF regardless of DNS lookups and response size
-func (u *DnsUpdater) Update(ideal *spf.SPF) error {
+func (u *DnsUpdater) Update(ideal *spf.SPF, dryRun bool) error {
 
 	flat, err := ideal.Flatten()
 	if err != nil {
@@ -95,7 +95,7 @@ func (u *DnsUpdater) Update(ideal *spf.SPF) error {
 		return nil
 	}
 
-	return u.updateDNS(topRecordIDToUpdate, topRecord, records, recordIDsToDelete)
+	return u.updateDNS(topRecordIDToUpdate, topRecord, records, recordIDsToDelete, dryRun)
 }
 
 // Returns a slice of subdomain records and one top-level record, which
@@ -128,38 +128,53 @@ func hash(txt string) string {
 	return hex.EncodeToString(sum[0:3])
 }
 
-func (u *DnsUpdater) updateDNS(topRecordIDToUpdate string, topRecord TXTRecord, newRecords []TXTRecord, recordIDsToDelete []string) error {
+func (u *DnsUpdater) updateDNS(topRecordIDToUpdate string, topRecord TXTRecord, newRecords []TXTRecord, recordIDsToDelete []string, dryRun bool) error {
 	// Need to add new records as well as delete the old ones
 	// 1. Create new subdomain records
 	// 2. Update or create top record
 	// 3. Delete any old top or sub records
 
+	// Always print what we're modifying
+	printer := &DNSPrinter{}
+
 	// 1.
 	for _, record := range newRecords {
-		_, err := u.Api.WriteTXTRecord(record.name, record.txt)
-		if err != nil {
-			return err
+		printer.WriteTXTRecord(record.name, record.txt)
+		if !dryRun {
+			_, err := u.Api.WriteTXTRecord(record.name, record.txt)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// 2.
 	if topRecordIDToUpdate == "" {
-		_, err := u.Api.WriteTXTRecord(topRecord.name, topRecord.txt)
-		if err != nil {
-			return err
+		printer.WriteTXTRecord(topRecord.name, topRecord.txt)
+		if !dryRun {
+			_, err := u.Api.WriteTXTRecord(topRecord.name, topRecord.txt)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
-		_, err := u.Api.UpdateTXTRecord(topRecordIDToUpdate, topRecord.name, topRecord.txt)
-		if err != nil {
-			return err
+		printer.UpdateTXTRecord(topRecordIDToUpdate, topRecord.name, topRecord.txt)
+		if !dryRun {
+			_, err := u.Api.UpdateTXTRecord(topRecordIDToUpdate, topRecord.name, topRecord.txt)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// 3.
 	for _, oldID := range recordIDsToDelete {
-		err := u.Api.DeleteTXTRecord(oldID)
-		if err != nil {
-			return err
+		printer.DeleteTXTRecord(oldID)
+		if !dryRun {
+			err := u.Api.DeleteTXTRecord(oldID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
