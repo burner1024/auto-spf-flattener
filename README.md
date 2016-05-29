@@ -13,6 +13,7 @@ Usage: ./bin/auto-spf-flattener -f spf-file [-p subdomain-prefix] domain
 Use the SPF record you would have put in your DNS if you weren't worried about too many lookups or too large a response
 Environment variables CF_API_EMAIL and CF_API_KEY are required
 
+  -d, --dry-run             Connect to DNS, but don't make any changes
   -f, --spf-file string     File that contains a valid spf format TXT record (required)
   -p, --spf-prefix string   Prefix for subdomains when multiple are needed. (default "_spf")
 ```
