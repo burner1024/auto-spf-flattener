@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	dns "github.com/burner1024/auto-spf-flattener/dns"
-	cf "github.com/burner1024/auto-spf-flattener/dns/cloudflare"
-	spf "github.com/burner1024/auto-spf-flattener/spf"
+	dns "github.com/technowhizz/auto-spf-flattener/dns"
+	cf "github.com/technowhizz/auto-spf-flattener/dns/cloudflare"
+	spf "github.com/technowhizz/auto-spf-flattener/spf"
 	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	"os"
