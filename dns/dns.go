@@ -4,7 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	spf "github.com/burner1024/auto-spf-flattener/spf"
+	spf "github.com/technowhizz/auto-spf-flattener/spf"
 )
 
 type DNSAPI interface {
