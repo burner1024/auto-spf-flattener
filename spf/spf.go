@@ -129,7 +129,7 @@ func (spf *SPF) Parse(txt string) error {
 	spf.Ip6 = []string{}
 	spf.Include = []string{}
 	// parse
-	for _, part := range strings.Split(txt, " ") {
+	for _, part := range strings.Fields(txt) {
 		switch {
 		case strings.HasPrefix(part, "v="):
 			spf.V = part[2:]
