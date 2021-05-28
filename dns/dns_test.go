@@ -2,7 +2,7 @@ package dns
 
 import (
 	"fmt"
-	mock_dns "github.com/envoy/auto-spf-flattener/dns/mock_dns"
+	mock_dns "github.com/technowhizz/auto-spf-flattener/dns/mock_dns"
 	"github.com/golang/mock/gomock"
 	"testing"
 )
